@@ -1,0 +1,125 @@
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-a
+  labels:
+    app: pod-a
+  namespace: ggckad-s0
+spec:
+  containers:
+  - name: pod-a-container
+    image: kubegoldenguide/simple-http-server
+
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-b
+  labels:
+    app: pod-b
+  namespace: ggckad-s0
+spec:
+  containers:
+  - name: pod-b-alpine-container
+    image: kubegoldenguide/alpine-spin:1.0.0
+
+  - name: pod-b-nginx-container
+    image: nginx:1.7.9
+  
+---
+apiVersion: v1
+data:
+  app-config.properties: |
+    connection_string=localhost:4096
+    external_url=google.com
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: ggckad-s2 
+
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: question-two-pod
+  namespace: ggckad-s2 
+spec:
+  containers:
+    - name: q2-container
+      image: kubegoldenguide/alpine-spin:1.0.0
+      envFrom:
+      - configMapRef:
+          name: app-config
+
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    test: liveness
+  name: liveness-http
+  namespace: ggckad-s4
+spec:
+  containers:
+  - name: liveness
+    image: kubegoldenguide/question-thirteen
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 80
+      initialDelaySeconds: 60
+      periodSeconds: 5
+
+---
+
+apiVersion: v1
+kind: Pod
+metadata:
+  namespace: ggckad-s2 
+  name: q3
+spec:
+  securityContext:
+    fsGroup: 2000
+  # volumes:
+  # - name: sec-ctx-vol
+  #   emptyDir: {}
+  containers:
+  - name: alpine-1
+    image: kubegoldenguide/alpine-spin:1.0.0
+    securityContext:
+      runAsUser: 1000
+      allowPrivilegeEscalation: false
+  - name: alpine-2
+    image: kubegoldenguide/alpine-spin:1.0.0
+    securityContext:
+      runAsUser: 2000
+      allowPrivilegeEscalation: false
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  namespace: ggckad-s5
+  labels:
+    client: user
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: revproxy
+  template:
+    metadata:
+      labels:
+        app: revproxy
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.7.9
+        ports:
+        - containerPort: 80
